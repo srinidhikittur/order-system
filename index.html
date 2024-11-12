@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catering Reservation System</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>THE THALI STORY</h1>
+        <nav>
+            <ul>
+                <li><a href="#products">View Products</a></li>
+                <li><a href="#cart">My Cart</a></li>
+                <li><a href="#profile">My Profile</a></li>
+                <li><a href="#logout" id="logoutBtn">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section id="auth-section">
+        <h2>Register/Login</h2>
+        <form id="authForm">
+            <label>Email</label>
+            <input type="email" id="email" placeholder="Email" required>
+            <label for="">Password</label>
+            <input type="password" id="password" placeholder="Password" required>
+            <button type="submit" id="authBtn">Register/Login</button>
+        </form>
+    </section>
+
+    
+
+    <section id="products">
+        <h1 style="color: white;"><b>Menu</b></h1>
+        <div id="product-list"></div>
+    </section>
+
+    <section id="cart">
+        <h1><b>My Cart</b></h1>
+        <div id="cart-items"></div>
+        <p style="color:#0fa7df;font-weight: bolder;">Total: RS <span id="cart-total">0.00</span></p>
+    </section>
+    
+    
+    <section id="reservation-form">
+        <h2>Make a Reservation</h2>
+        <form id="reservationForm">
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="date">Date:</label>
+            <input type="date" id="date" name="date" required>
+
+            <label for="guests">Number of Guests:</label>
+            <input type="number" id="guests" name="guests" min="1" required>
+
+            <label for="message">Special Requests:</label>
+            <textarea id="message" name="message"></textarea>
+
+            <button type="submit">Submit Reservation</button>
+        </form>
+    </section>
+
+    <section id="reservations">
+        <h2>Current Reservations</h2>
+        <ul id="reservationList"></ul>
+    </section>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+    const products = [
+        { id: 1, name: 'Veg Thali', content: '2 sabji, 2 chapati, rice, dal, papad, sweet, salad', price: 140, image: 'Veg_Thali.jpeg' },
+        { id: 2, name: 'Non-Veg Thali', content: '1 chicken dish, 1 sabji, 2 chapati, rice, dal, papad, sweet, salad', price: 180, image: 'chicken_thali.jpeg' },
+        { id: 3, name: 'Special Thali', content: '3 sabji, 3 chapati, pulao, dal, raita, papad, sweet, salad', price: 200, image: 'shahi_thali.jpeg' },
+        { id: 4, name: 'Fish Thali', content: '2 Fry Fish, 2 chapati, rice, Fish Rassa, papad, Solkadi, salad,Pudina Chutney', price: 210, image: 'fish_thali.jpeg' },
+        { id: 5, name: 'Egg Thali', content: '1 Boiled Egg, Egg Curry, 2 chapati,Jeera rice,salad', price: 150, image: 'egg_thali.jpeg' },
+        { id: 6, name: 'Mutton Biryani', content: 'Biryani, raita, salad,Pudina Chutney', price: 280, image: 'Mutton_biryani.jpeg' },
+        { id: 7, name: 'Special Fish Thali', content: '1 Fry Fish, rice, Fish Rassa, Solkadi, salad,Pudina Chutney', price: 240, image: 'pomplete_thali.jpeg' },
+        { id: 8, name: 'Regular Veg Thali', content: '1 Sabji, Curd, 2 chapati,Papad ,Kanda Bhaji,Jeera rice,salad', price: 120, image: 'thali.jpeg' },
+        { id: 9, name: 'Maharaja Thali', content: 'Jeera Rice,Sweet, salad,4 Sabji,4 Nagets,Butter Milk,Mango Pickle', price: 190, image: 'veg2_thali.jpeg' }
+        
+        //... add other products here
+    ];
+
+    let cart = [];
+    let currentUserEmail = '';
+
+    // AUTHENTICATION
+    const authForm = document.getElementById('authForm');
+    authForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        // Validate email and password
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            displayError('Invalid email format');
+            return;
+        } else if (password.length < 6) {
+            displayError('Password must be at least 6 characters.');
+            return;
+        }
+
+        currentUserEmail = email;
+        alert(`Welcome, ${email}`);
+        document.getElementById('auth-section').style.display = 'none';
+        document.getElementById('products').style.display = 'grid';
+        document.getElementById('cart').style.display = 'block';
+        document.getElementById('reservations').style.display = 'block';
+        document.getElementById('reservation-form').style.display = 'block';
+
+        loadProducts();
+        loadReservations();
+    });
+
+    function displayError(message) {
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'error-message';
+        errorMessage.innerText = message;
+        authForm.appendChild(errorMessage);
+    }
+
+    // LOGOUT FUNCTIONALITY
+    const logoutBtn = document.getElementById('logoutBtn');
+    logoutBtn.addEventListener('click', () => {
+        cart = [];
+        loadCart();
+        document.getElementById('products').style.display = 'none';
+        document.getElementById('cart').style.display = 'none';
+        document.getElementById('reservation-form').style.display = 'none';
+        document.getElementById('reservations').style.display = 'none';
+        document.getElementById('auth-section').style.display = 'block';
+        alert('You have logged out.');
+    });
+
+    // PRODUCTS
+    function loadProducts() {
+        const productList = document.getElementById('product-list');
+        productList.innerHTML = '';
+        products.forEach(product => {
+            const productDiv = document.createElement('div');
+            productDiv.classList.add('product');
+            productDiv.innerHTML = `
+                <img src="${product.image}" alt="${product.name}">
+                <h2>${product.name}</h2>
+                <h3>${product.content}</h3>
+                <p><b>Price: Rs${product.price}</b></p>
+                <label>Quantity</label>
+                <input type="number" min="1" value="1" id="quantity-${product.id}" />
+                <button onclick="addToCart(${product.id})">Add to Cart</button>
+            `;
+            productList.appendChild(productDiv);
+        });
+    }
+
+    // CART
+    window.addToCart = (productId) => {
+        const product = products.find(p => p.id === productId);
+        const quantity = parseInt(document.getElementById(`quantity-${productId}`).value) || 1;
+        if (quantity < 1) return alert('Invalid quantity');
+
+        for (let i = 0; i < quantity; i++) cart.push(product);
+        alert(`${product.name} (x${quantity}) added to cart!`);
+        loadCart();
+    };
+
+    function loadCart() {
+        const cartItems = document.getElementById('cart-items');
+        cartItems.innerHTML = '';
+        if (cart.length === 0) {
+            cartItems.innerHTML = '<p>Your cart is empty.</p>';
+            document.getElementById('cart-total').innerText = '0.00';
+            return;
+        }
+
+        let total = 0;
+        const itemCounts = cart.reduce((counts, item) => {
+            counts[item.id] = (counts[item.id] || 0) + 1;
+            return counts;
+        }, {});
+
+        for (const [id, count] of Object.entries(itemCounts)) {
+            const product = products.find(p => p.id == id);
+            const cartItemDiv = document.createElement('div');
+            cartItemDiv.classList.add('cart-item');
+            cartItemDiv.innerHTML = `
+                <h4>${product.name}</h4>
+                <p>Price: Rs${product.price.toFixed(2)} each</p>
+                <img src="${product.image}" alt="${product.name}">
+                <button onclick="removeFromCart(${id})">Remove</button>
+                <p>Total: Rs${(product.price * count).toFixed(2)}</p>
+            `;
+            cartItems.appendChild(cartItemDiv);
+            total += product.price * count;
+        }
+        document.getElementById('cart-total').innerText = total.toFixed(2);
+    }
+
+    window.removeFromCart = (id) => {
+        cart = cart.filter(item => item.id != id);
+        loadCart();
+    };
+
+    // RESERVATION FORM
+    const reservationForm = document.getElementById('reservationForm');
+    reservationForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const reservation = {
+            name: document.getElementById('name').value,
+            email: currentUserEmail,
+            date: document.getElementById('date').value,
+            guests: document.getElementById('guests').value,
+            message: document.getElementById('message').value
+        };
+        saveReservation(reservation);
+        addReservationToList(reservation);
+        reservationForm.reset();
+    });
+
+    function saveReservation(reservation) {
+        const reservations = JSON.parse(localStorage.getItem('reservations')) || [];
+        reservations.push(reservation);
+        localStorage.setItem('reservations', JSON.stringify(reservations));
+    }
+
+    function loadReservations() {
+        const reservationList = document.getElementById('reservationList');
+        reservationList.innerHTML = '';
+        const reservations = JSON.parse(localStorage.getItem('reservations')) || [];
+        const userReservations = reservations.filter(r => r.email === currentUserEmail);
+        userReservations.forEach(addReservationToList);
+    }
+
+    function addReservationToList(reservation) {
+        const reservationList = document.getElementById('reservationList');
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <strong>${reservation.name}</strong> - ${reservation.date}<br>
+            Guests: ${reservation.guests}<br>
+            Message: ${reservation.message}
+        `;
+        reservationList.appendChild(li);
+    }
+});
+</script>
+    
+</body>
+</html>
